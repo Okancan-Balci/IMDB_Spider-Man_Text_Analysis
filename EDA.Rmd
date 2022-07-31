@@ -1,0 +1,458 @@
+---
+output:
+  html_document:
+    theme: flatly
+    highlight: pygments
+    toc: true
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+    toc_depth: 4
+    df_print: paged
+    code_folding: show
+---
+
+```{r, include=FALSE}
+library(tidyverse)
+library(tidytext)
+library(lubridate)
+library(scales)
+library(broom)
+library(jsonlite)
+library(widyr)
+library(igraph)
+library(ggraph)
+library(topicmodels)
+
+theme_set(theme_bw(base_size = 12))
+
+options(scipen = 20)
+
+knitr::opts_chunk$set(warning = FALSE,
+                      message = FALSE,
+                      fig.align = "center",
+                      fig.width = 8)
+
+```
+
+
+
+
+```{r}
+review_data <- read_csv("imdb-spider-man-reviews.csv")
+
+review_data <- review_data %>% 
+  mutate(Helpfulness = Helpful_Vote / Total_Vote,
+         Helpfulness = replace_na(Helpfulness, 0))
+
+review_data <- review_data %>% 
+  mutate(Date = dmy(Date))
+
+review_data %>% 
+  skimr::skim()
+```
+
+# Visualization
+
+```{r}
+mean_ratings <- review_data %>% 
+  group_by(Movie) %>% 
+  summarise(Rating = mean(Rating, na.rm = TRUE))
+
+review_data %>% 
+  ggplot(aes(Rating)) +
+  geom_bar(fill = "steelblue", color = "lightgray") +
+  geom_vline(aes(xintercept = Rating, color = Movie), data = mean_ratings,
+             show.legend = FALSE, size = 1.5)+
+  geom_label(aes(label = round(Rating, digits = 2), y = Inf, x = Rating, color = Movie),
+            data = mean_ratings, vjust = 1, hjust = 1, show.legend = FALSE, size = 6)+
+  facet_wrap(~Movie, scales = "free")
+```
+
+
+```{r}
+mean_helpfulness <- review_data %>% 
+  filter(Total_Vote > 0) %>% 
+  group_by(Movie) %>% 
+  summarise(Helpfulness = mean(Helpfulness, na.rm = TRUE))
+
+review_data %>% 
+  filter(Total_Vote > 0) %>% 
+  ggplot(aes(Helpfulness))+
+  geom_histogram(color = "white", fill = "steelblue") +
+  geom_vline(aes(xintercept = Helpfulness, color = Movie), data = mean_helpfulness,
+             show.legend = FALSE, size = 1.5)+
+  geom_label(aes(label = round(Helpfulness, digits = 2), y = Inf, x = Helpfulness, color = Movie),
+             data = mean_helpfulness, show.legend = FALSE, vjust = 1, hjust = 0.5, size = 6)+
+  facet_wrap(~Movie, scales = "free")
+```
+
+```{r}
+review_data %>% 
+  filter(Total_Vote > 0) %>% 
+  ggplot(aes(Rating, Helpfulness))+
+  geom_point()+
+  geom_smooth()+
+  facet_wrap(~Movie)
+```
+
+# Text Analysis
+
+## Unigrams
+
+```{r}
+review_data <- review_data %>% 
+  mutate(Review_ID = row_number())
+
+
+unigram_tokens <- review_data %>% 
+  mutate(Review = str_to_lower(Review, locale = "en")) %>% 
+  unnest_tokens(output = Word, input = Review, to_lower = FALSE)
+```
+
+
+```{r}
+unigram_tokens %>% 
+  anti_join(stop_words, by = c("Word"= "word")) %>% 
+  group_by(Word, Movie) %>% 
+  count(name = "Word_Count", sort = TRUE) %>% 
+  ungroup() %>% 
+  group_by(Movie) %>% 
+  slice_max(order_by = Word_Count, n = 20) %>% 
+  mutate(Word = reorder_within(Word, Word_Count, Movie)) %>% 
+  ggplot(aes(Word_Count, Word, fill = Movie))+
+  geom_col(show.legend = F)+
+  facet_wrap(~Movie, scales = "free")+
+  scale_y_reordered()
+```
+
+## Bigrams
+
+```{r}
+filtered_bigrams <- review_data %>% 
+  mutate(Review = str_to_lower(Review, locale = "en")) %>% 
+  unnest_tokens(output = Bigram, input = Review, token = "ngrams", n = 2, to_lower = FALSE) %>% 
+  separate(Bigram, into = c("first", "second"), sep = " ") %>% 
+  anti_join(stop_words, by = c("first" =  "word")) %>% 
+  anti_join(stop_words, by = c("second" = "word")) 
+  
+
+filtered_bigrams %>% 
+  unite(col = "Bigram", first, second, sep = " ") %>% 
+  group_by(Bigram, Movie) %>% 
+  count(sort = T, name = "Bigram_Count") %>% 
+  ungroup() %>% 
+  group_by(Movie) %>% 
+  slice_max(order_by = Bigram_Count, n = 20,with_ties = FALSE) %>% 
+  mutate(Bigram = reorder_within(Bigram, by = Bigram_Count, Movie)) %>% 
+  ggplot(aes(Bigram_Count, Bigram, fill = Movie))+
+  geom_col(show.legend = F)+
+  facet_wrap(~Movie, scales = "free")+
+  scale_y_reordered()
+```
+
+### Bigram Graph
+
+```{r}
+filtered_bigrams %>% 
+  unite(col = "Bigram", first, second, sep = " ") %>% 
+  group_by(Bigram, Movie) %>% 
+  count(sort = T, name = "Bigram_Count") %>% 
+  separate(col = Bigram, into = c("first", "second"), sep = " ") %>% 
+  filter(Bigram_Count > 300) %>% 
+  graph_from_data_frame() %>% 
+  ggraph(layout = "fr")+
+  geom_edge_link(aes(edge_alpha = Bigram_Count, edge_width = Bigram_Count), edge_color = "steelblue")+
+  geom_node_point(size = 5)+
+  geom_node_text(aes(label = name), repel = T, point.padding = unit(0.2, "lines"))+
+  theme_void()
+```
+
+
+
+## Trigrams
+
+```{r}
+filtered_trigrams <- review_data %>% 
+  mutate(Review = str_to_lower(Review, locale = "en")) %>% 
+  unnest_tokens(output = Trigram, input = Review, token = "ngrams", n = 3, to_lower = FALSE) %>% 
+  separate(Trigram, into = c("first", "second", "third"), sep = " ") %>% 
+  anti_join(stop_words, by = c("first" =  "word")) %>% 
+  anti_join(stop_words, by = c("second" = "word")) %>% 
+  anti_join(stop_words, by = c("third" = "word"))
+  
+
+filtered_trigrams %>% 
+  unite(col = "Trigram", first, second, third, sep = " ") %>% 
+  group_by(Trigram, Movie) %>% 
+  count(sort = T, name = "Trigram_Count") %>% 
+  ungroup() %>% 
+  group_by(Movie) %>% 
+  slice_max(order_by = Trigram_Count, n = 20,with_ties = FALSE) %>% 
+  mutate(Trigram = reorder_within(Trigram, by = Trigram_Count, Movie)) %>% 
+  ggplot(aes(Trigram_Count, Trigram, fill = Movie))+
+  geom_col(show.legend = F)+
+  facet_wrap(~Movie, scales = "free")+
+  scale_y_reordered()
+```
+
+### Trigram Graph
+
+```{r}
+filtered_trigrams %>% 
+  unite(col = "Trigram", first, second, third, sep = " ") %>% 
+  group_by(Trigram, Movie) %>% 
+  count(sort = T, name = "Trigram_Count") %>% 
+  separate(col = Trigram, into = c("first", "second", "third"), sep = " ") %>% 
+  filter(Trigram_Count > 50) %>% 
+  graph_from_data_frame() %>% 
+  ggraph(layout = "fr")+
+  geom_edge_link(aes(edge_alpha = Trigram_Count, edge_width = Trigram_Count), edge_color = "steelblue",
+                 arrow = arrow(length = unit(4, 'mm')))+
+  geom_node_point(size = 5)+
+  geom_node_text(aes(label = name), repel = T, point.padding = unit(0.2, "lines"))+
+  theme_void()
+```
+
+# TF-IDF Analysis
+
+```{r}
+unigram_tokens %>% 
+  group_by(Word, Movie) %>% 
+  count() %>% 
+  ungroup() %>% 
+  filter(n > 2) %>% 
+  bind_tf_idf(term = Word, document = Movie, n = n) %>% 
+  group_by(Movie) %>% 
+  slice_max(order_by = tf_idf, n = 20, with_ties = FALSE) %>% 
+  mutate(Word = reorder_within(Word, tf_idf, Movie)) %>% 
+  ggplot(aes(tf_idf, Word, fill = Movie))+
+  geom_col(show.legend = F, color = "darkred")+
+  facet_wrap(~Movie, scales = "free")+
+  scale_fill_brewer(palette = "RdBu")+
+  scale_y_reordered()
+```
+
+## Bigram TF-IDF
+
+```{r}
+bigram_tokens <- review_data %>% 
+  mutate(Review = str_to_lower(Review, locale = "en")) %>% 
+  unnest_tokens(output = Bigram, input = Review, token = "ngrams", n = 2, to_lower = FALSE)%>% 
+  separate(Bigram, into = c("first", "second"), sep = " ") %>% 
+  anti_join(stop_words, by = c("first" =  "word")) %>% 
+  anti_join(stop_words, by = c("second" = "word")) %>% 
+  unite(col = "Bigram", first, second, sep = " ")
+
+bigram_tokens %>% 
+  group_by(Movie, Bigram) %>% 
+  count() %>% 
+  ungroup() %>% 
+  filter(n > 2) %>% 
+  bind_tf_idf(term = Bigram, document = Movie, n = n) %>% 
+  group_by(Movie) %>% 
+  slice_max(order_by = tf_idf, n = 20, with_ties = F) %>% 
+  mutate(Bigram = reorder_within(Bigram, tf_idf, Movie)) %>% 
+  ggplot(aes(tf_idf, Bigram, fill = Movie))+
+  geom_col(show.legend = F)+
+  facet_wrap(~Movie, scales = "free")+
+  scale_y_reordered()
+```
+
+## Trigram TF-IDF
+
+```{r}
+trigram_tokens <- review_data %>% 
+  mutate(Review = str_to_lower(Review, locale = "en")) %>% 
+  unnest_tokens(output = Trigram, input = Review, token = "ngrams", n = 3, to_lower = FALSE)%>%  
+  separate(col = Trigram, into = c("first", "second", "third"), sep = " ") %>% 
+  anti_join(stop_words, by = c("first" =  "word")) %>% 
+  anti_join(stop_words, by = c("second" = "word")) %>% 
+  anti_join(stop_words, by = c("third" = "word"))%>% 
+  unite(col = "Trigram", first, second, third, sep = " ")
+
+trigram_tokens %>% 
+  group_by(Movie, Trigram) %>% 
+  count() %>% 
+  ungroup() %>% 
+  filter(n > 2) %>% 
+  bind_tf_idf(term = Trigram, document = Movie, n = n) %>% 
+  group_by(Movie) %>% 
+  slice_max(order_by = tf_idf, n = 20, with_ties = F) %>% 
+  mutate(Trigram = reorder_within(Trigram, tf_idf, Movie)) %>% 
+  ggplot(aes(tf_idf, Trigram, fill = Movie))+
+  geom_col(show.legend = F)+
+  facet_wrap(~Movie, scales = "free")+
+  scale_y_reordered()
+```
+
+
+# Sentiment 
+
+## Sentiment per Review
+
+Not sure about averages.
+
+```{r}
+Review_Sentiment <- unigram_tokens %>% 
+  anti_join(stop_words, by = c("Word" = "word")) %>% 
+  inner_join(get_sentiments("afinn"), by = c("Word" = "word")) %>% 
+  group_by(Review_ID) %>%  
+  summarise(Review_sentiment = sum(value)) 
+
+Review_N <- review_data %>% 
+  group_by(Movie) %>% 
+  count(name = "Review_N")
+
+review_data %>% 
+  inner_join(Review_Sentiment, by = "Review_ID") %>% 
+  group_by(Movie) %>% 
+  summarise(Total_Sentiment = sum(Review_sentiment)) %>% 
+  inner_join(Review_N, by = "Movie") %>% 
+  mutate(Avg_Sentiment = Total_Sentiment / Review_N) %>% 
+  ggplot(aes(Avg_Sentiment, reorder(Movie, Avg_Sentiment), fill = Avg_Sentiment > 0))+
+  geom_col(show.legend = F)+
+  scale_color_brewer(palette = "Set1", aesthetics = c("color", "fill"))+
+  labs(y = NULL)
+```
+
+## Sentiment Contribution by Each Word
+
+```{r}
+unigram_tokens %>% 
+  inner_join(get_sentiments("afinn"), by = c("Word" = "word")) %>% 
+  group_by(Movie, Word) %>% 
+  summarise(total_sent = sum(value),
+            size = n()) %>%
+  ungroup() %>% 
+  group_by(Movie) %>% 
+  slice_max(order_by = abs(total_sent),n = 30, with_ties = F) %>% 
+  mutate(Word = reorder_within(Word, total_sent, Movie)) %>% 
+  ggplot(aes(total_sent, Word, fill = total_sent >0))+
+    geom_col(show.legend = F)+
+    facet_wrap(~Movie, scales = "free")+
+    scale_color_brewer(palette = "Set1", aesthetics = c("fill", "color"))+
+    scale_y_reordered()
+```
+
+## Sentiment of Each Review
+
+```{r}
+worst_reviews <- unigram_tokens %>% 
+  inner_join(get_sentiments("afinn"), by = c("Word" = "word")) %>% 
+  group_by(Movie, Review_ID) %>% 
+  summarise(Total_Sentiment = sum(value),
+            Word_Count = n()) %>% 
+  mutate(Avg_Sent_per_Word = Total_Sentiment / Word_Count) %>% 
+  filter(Word_Count > 10) %>% 
+  slice_min(order_by = Avg_Sent_per_Word, n = 1) 
+
+best_reviews <- unigram_tokens %>% 
+  inner_join(get_sentiments("afinn"), by = c("Word" = "word")) %>% 
+  group_by(Movie, Review_ID) %>% 
+  summarise(Total_Sentiment = sum(value),
+            Word_Count = n()) %>% 
+  mutate(Avg_Sent_per_Word = Total_Sentiment / Word_Count) %>% 
+  filter(Word_Count > 10) %>% 
+  slice_max(order_by = Avg_Sent_per_Word, n = 1) 
+
+
+
+```
+
+
+```{r}
+print_reviews <- function(IDs) {
+  
+  reviews <- review_data %>%
+    filter(Review_ID %in% IDs) 
+  
+  cat(paste0("\n",
+                   "---", reviews$Movie, "---",
+                   "\n Review Rating : ", reviews$Rating, "/10",
+                   "\n\n",
+                   reviews$Review, "\n"))
+}
+
+print_reviews(best_reviews$Review_ID)
+print_reviews(worst_reviews$Review_ID)
+
+```
+
+## Negated Words
+
+```{r}
+negate_words <- c("not", "without", "no", "can't", "don't", "won't")
+
+
+negated_words <- review_data %>% 
+  mutate(Review = str_to_lower(Review, locale = "en")) %>% 
+  unnest_tokens(output = Bigram, input = Review, token = "ngrams", n = 2, to_lower = FALSE) %>% 
+  separate(Bigram, into = c("first", "second"), sep = " ") %>% 
+  filter(first %in% negate_words) %>% 
+  inner_join(get_sentiments("afinn"), by = c("second" = "word"))
+
+
+plot_negation_graphs <- function(Movie_Name, negated_words) {
+
+negated_words %>% 
+  group_by(Movie,first, second) %>% 
+  summarise(total = sum(value)) %>% 
+  ungroup() %>% 
+  group_by(Movie, first) %>% 
+  slice_max(abs(total), n = 10, with_ties = F) %>% 
+  filter(Movie == Movie_Name) %>%
+  mutate(second = reorder_within(second, total, first)) %>% 
+  ggplot(aes(total, second, fill = total > 0))+
+  geom_col(show.legend = F)+
+  facet_wrap(~first, scales = "free")+
+  scale_y_reordered()+
+  scale_fill_brewer(palette = "Set1")+
+  ggtitle({{Movie_Name}})+
+  labs(y = NULL, x = NULL)
+  
+}
+
+
+
+
+map(unique(review_data$Movie), plot_negation_graphs, negated_words = negated_words) %>% 
+  patchwork::wrap_plots(ncol = 3)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -83,6 +83,11 @@ review_data %>%
 
 # Non-Textual Analysis
 
+Let's start the analysis with the non-textual properties of the reviews such as Rating, Helpfulness and Date. I also engineered the Review Length variable by counting the number of words that a review has.
+
+## Univariate Analysis
+
+We can see distributions and mean ratings for each Spider-Man movie on the bar-plot below. It is nice to see that my three all time favorite movies (Spider-Man 2, No Way Home, Into the Spider-Verse) were also rated highly by IMDB users. Spider-Man 3 was a huge disappointment for me and seeing that it is also the worst rated movie doesn't surprise me. The Amazing Spider-Man series and the first two movies of Marvel Cinematic Universe (Homecoming, Far From Home) never really moved me but I really liked the performances of both Andrew Garfield and Tom Holland.
 
 ```{r}
 mean_ratings <- review_data %>% 
@@ -97,23 +102,19 @@ review_data %>%
   geom_label(aes(label = round(Rating, digits = 2), y = Inf, x = Rating, color = Movie),
             data = mean_ratings, vjust = 1, hjust = 1, show.legend = FALSE, size = 6)+
   scale_x_continuous(n.breaks = 10)+
-  facet_wrap(~Movie, scales = "free")
-```
-
-```{r}
-review_data %>% 
-  ggplot(aes(Rating, Review_Length, group = Rating))+
-  geom_boxplot()+
-  geom_smooth(aes(Rating, Review_Length), inherit.aes = F, size = 1.3, color = "darkblue")+
   facet_wrap(~Movie, scales = "free")+
-  scale_x_continuous(n.breaks = 10)
+  labs(y = NULL, x = NULL, title = "Rating Distributions and Mean Ratings for each Movie")
 ```
 
 
+The distributions might indicate the differences between reactions. For instance, ratings of Spider-Man 3 kind of look like they were uniformly distributed. Some people loved it, some people hated it and some other people thought that it was a mediocre movie. We can observe a similar distribution for The Amazing Spider-Man 2 as well. On the other hand, rating distributions of No way Home and Into the Spider-Verse are really skewed to the left with a very thin tail. People mostly loved these movies.
+
+
+Helpfulness (Helpful Votes / Total Votes) of a review might give an idea about how review readers reacted to reviews. We can see that Spider-Man 2 averaged 58% helpfulness. Readers agreed many things there but we don't really know what kind of a review they mostly agreed. Maybe they found some criticisms constructive and valuable or maybe they just voted praising highly rated reviews helpful because they really loved the movie too. This question can certainly be answered but that requires more than one variable. Since this is introductory univarite analysis we pass this question for now while keeping it in our minds.
 
 ```{r}
 mean_helpfulness <- review_data %>% 
-  filter(Total_Vote > 1) %>% 
+  filter(Total_Vote > 2) %>% 
   group_by(Movie) %>% 
   summarise(Helpfulness = mean(Helpfulness, na.rm = TRUE))
 
@@ -125,46 +126,120 @@ review_data %>%
              show.legend = FALSE, size = 1.5)+
   geom_label(aes(label = round(Helpfulness, digits = 2), y = Inf, x = Helpfulness, color = Movie),
              data = mean_helpfulness, show.legend = FALSE, vjust = 1, hjust = 1, size = 5)+
-  facet_wrap(~Movie, scales = "free")
+  facet_wrap(~Movie, scales = "free")+
+  labs(y = NULL, x = NULL, title = "Helpfulness Distributions and Mean Helpfulness for each Movie")
 ```
+
+
+Review Length is an interesting variable. Means and Distributions can change a lot from movie to movie. I think Review Length might be used as an information metric, in other words the lengthier a review gets more detail it contains about the movie. For some movies like Spider-Man 3 or TASM reviewers really wanted to elaborate more and more. A strong majority of reviews have 100 words and more for these movies. On the other hand, Into the Spider-Verse had many short reviews. These reviews are mostly under 100 words.
+
+```{r}
+mean_review_length <- review_data %>% 
+  group_by(Movie) %>% 
+  summarise(Review_Length = mean(Review_Length))
+
+review_data %>% 
+  ggplot(aes(Review_Length))+
+  geom_histogram(color = "white", fill = "darkblue")+
+  geom_vline(aes(xintercept = Review_Length, color = Movie), data = mean_review_length,
+             show.legend = FALSE, size = 1.5)+
+  geom_label(aes(label = round(Review_Length), y = Inf, x = Review_Length, color = Movie),
+             data = mean_review_length, show.legend = FALSE, vjust = 1, hjust = 0, size = 5)+
+  facet_wrap(~Movie, scales = "free")+
+  scale_x_log10()+
+  labs(y = NULL, x = NULL, title = "Review Length Distributions and Mean Length for each Movie",
+       subtitle = "X-Axis is logarithmic scale")
+```
+
+
+## Bivariate Analysis
+
+Now let's explore the relationships between the variables we analyzed above. Starting with Rating against Review Length we observe a weak non-linear relationship for almost every movie, an inverse U-Shape to be exact. I guess people don't want to elaborate more when they either love or hate the movie. From rating 4 to 8 we can observe that Review length is higher so I think these ratings naturally require more elaboration because they are somewhat two sided rather than only good or only bad. 
 
 ```{r}
 review_data %>% 
-  filter(Total_Vote > 1) %>% 
+  ggplot(aes(Rating, Review_Length, group = Rating))+
+  geom_boxplot()+
+  geom_smooth(aes(Rating, Review_Length), inherit.aes = F, size = 1.3, color = "darkblue")+
+  facet_wrap(~Movie)+
+  scale_x_continuous(n.breaks = 10)+
+  scale_y_log10()+
+  labs(y = "Review Length", subtitle = "Y-Axis is logarithmic scale")
+```
+
+The relationship between Review Length and Review Helpfulness is plotted below. Except for Into the Spider-Verse and No Way Home, an inverse relationship between two variables can be observed. Shorter reviews seem to found more helpful than longer ones. To be clear, Spider-Man and Spider-Man 2 show a non-linear relationship but confidence bands are really wide at tails. They are high likely are getting influenced by outlier observations. 
+
+```{r}
+review_data %>% 
+  filter(Total_Vote > 2) %>% 
   ggplot(aes(Review_Length, Helpfulness))+
-  geom_point()+
+  geom_point(alpha = 0.5)+
   geom_smooth()+
   scale_x_log10()+
-  facet_wrap(~Movie, scales = "free")
+  facet_wrap(~Movie, scales = "free")+
+  labs(x = "Review Length", subtitle = "X-Axis is logarithmic scale")
 ```
 
-
+Remember the question we asked when we were analyzing Helpfulness in the former section? Now we can get somewhat of an answer. It appears that people usually find high rated reviews helpful. This is very plain for Spider-Man and Spider-Man 2, TASM 2 and Far From Home. We can also observe that for some movies neutral rated reviews (4-6) are less helpful even compared to very low rated reviews. This is clear for Homecoming, Far From Home and No Way Home. 
 
 ```{r}
 review_data %>% 
-  filter(Total_Vote > 1) %>% 
-  ggplot(aes(Rating, Helpfulness))+
-  geom_point()+
-  geom_smooth()+
+  filter(Total_Vote > 2) %>% 
+  ggplot(aes(Rating, Helpfulness, group = Rating))+
+  geom_boxplot()+
+  geom_smooth(inherit.aes = FALSE, aes(Rating, Helpfulness))+
   facet_wrap(~Movie)+
   scale_x_continuous(n.breaks = 10)
 ```
+
+Lastly I want to plot all these variables against time. Additionally, since Spider-Man: No Way Home brought characters from both Original Spider-Man and The Amazing Spider-Man I want to see if something changed for reviews of the older movies after the release date of No Way Home.
+
+Review Ratings through time is very interesting to look at. Except for Spider-Man 3 we can observe a strong slump for ratings little bit after the first reviews were published. Overtime, ratings start to normalize again and even get higher. I don't really have an idea about these slumps. Spider-Man 3 is an interesting case because over time it gets better review rating scores. Maybe it couldn't meet the high expectations at first but after people realized that it wasn't a horrible movie. I also marked two time points on the plots. The first one is the birth of the internet meme "Bully Maguire" which is based on Spider-Man 3 and Tobey Maguire and the second one is the release date of the movie No Way Home. I don't think YouTube exposure of Bully Maguire affected ratings over time. I don't think the release of No Way Home affected ratings either. Trends are looking very stable.
 
 ```{r}
 review_data %>% 
   ggplot(aes(Date, Rating))+
   geom_point(color = "darkblue", alpha = 0.7)+
   geom_vline(xintercept = ymd("2021-12-15"), color = "black", size = 1.3)+
+  geom_vline(xintercept = ymd("2018-02-18"), color = "red", size = 1.3)+# Bully Maguire First Appearance 
   geom_smooth(color = "darkred", size = 1.6)+
   scale_y_continuous(n.breaks = 10)+
-  facet_wrap(~Movie, scales = "free")
+  scale_x_date(date_minor_breaks = "year")+
+  facet_wrap(~Movie, scales = "free")+
+  labs(x = NULL)
 
 ```
+
+
 
 
 ```{r}
 review_data %>% 
   ggplot(aes(Date, Review_Length))+
+  geom_point()+
+  geom_smooth(color = "blue")+
+  geom_vline(xintercept = ymd("2021-12-15"), color = "red", size = 1.1, alpha = 0.8)+
+  geom_vline(xintercept = ymd("2018-02-18"), color = "darkred", size = 1.3)+
+  facet_wrap(~Movie, scales = "free")+
+  scale_y_log10()+
+  labs(x = NULL)
+```
+
+```{r}
+review_data %>% 
+  ggplot(aes(Date, Total_Vote+1))+
+  geom_point()+
+  geom_smooth(color = "blue")+
+  geom_vline(xintercept = ymd("2021-12-15"), color = "red", size = 1.1, alpha = 0.8)+
+  facet_wrap(~Movie, scales = "free")+
+  scale_y_log10()+
+  labs(x = NULL)
+```
+
+
+```{r}
+review_data %>% 
+  ggplot(aes(Date, Helpfulness))+
   geom_point()+
   geom_smooth(color = "blue")+
   geom_vline(xintercept = ymd("2021-12-15"), color = "red", size = 1.1, alpha = 0.8)+
@@ -677,10 +752,10 @@ tidy(movie_LDA_4) %>%
   scale_y_reordered()
 ```
 
-1 - OG Triology
+1 - OG Trilogy
 2 - MCU
 3 - TASM
-4 - Spider-Man & Spider-Verse
+4 - Spider-Verse & OG Trilogy
 
 ```{r}
 tidy(movie_LDA_4, matrix = "gamma") %>% 

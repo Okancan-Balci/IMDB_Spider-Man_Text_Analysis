@@ -194,7 +194,7 @@ review_data %>%
 
 Lastly I want to plot all these variables against time. Additionally, since Spider-Man: No Way Home brought characters from both Original Spider-Man and The Amazing Spider-Man I want to see if something changed for reviews of the older movies after the release date of No Way Home.
 
-Review Ratings through time is very interesting to look at. Except for Spider-Man 3 we can observe a strong slump for ratings little bit after the first reviews were published. Overtime, ratings start to normalize again and even get higher. I don't really have an idea about these slumps. Spider-Man 3 is an interesting case because over time it gets better review rating scores. Maybe it couldn't meet the high expectations at first but after people realized that it wasn't a horrible movie. I also marked two time points on the plots. The first one is the birth of the internet meme "Bully Maguire" which is based on Spider-Man 3 and Tobey Maguire and the second one is the release date of the movie No Way Home. I don't think YouTube exposure of Bully Maguire affected ratings over time. I don't think the release of No Way Home affected ratings either. Trends are looking very stable.
+Review Ratings through time is very interesting to look at. Except for Spider-Man 3 we can observe a strong slump for ratings little bit after the first reviews were published. Overtime, ratings start to normalize again and even get higher. I don't really have an actual idea about these slumps. Maybe the first wave of the reviewers are also enthusiastic fans so they give higher ratings. Spider-Man 3 is an interesting case because over time it gets better review rating scores. Maybe it couldn't meet the high expectations at first but then people realized that it wasn't a horrible movie. I also marked two time points on the plots. The first one is the birth of the internet meme "Bully Maguire" which is based on Spider-Man 3 and Tobey Maguire. Bully Maguire videos were watched over millions of times on YouTube and this definitely brings attention to the original trilogy especially. The second one is the release date of the movie No Way Home which made call backs to older Spider-Man Movies. I don't think YouTube exposure of Bully Maguire affected ratings over time. I don't think the release of No Way Home affected ratings either. Trends are looking very stable.
 
 ```{r}
 review_data %>% 
@@ -211,48 +211,60 @@ review_data %>%
 ```
 
 
-
+Can we say that older reviews are usually longer? For a number of movies maybe we can say that. The original trilogy had some interesting influx of shorter reviews after about 2018. Can this be the Bully Maguire effect? We should definitely investigate this further when we analyze the bigrams.
 
 ```{r}
 review_data %>% 
   ggplot(aes(Date, Review_Length))+
-  geom_point()+
+  geom_point(alpha = 0.25)+
+  geom_smooth(color = "blue")+
+  geom_vline(xintercept = ymd("2021-12-15"), color = "red", size = 1.1, alpha = 0.8)+
+  geom_vline(xintercept = ymd("2018-02-18"), color = "darkred", size = 1.3)+
+  facet_wrap(~Movie, scales = "free")+
+  scale_x_date(date_minor_breaks = "years")+
+  scale_y_log10()+
+  labs(x = NULL, y = "Review Length", subtitle = "Y-Axis is logarithmic scale")
+```
+
+Lastly, let's also plot total votes a review gets and helpfulness of a review over time. Can we say that older reviews get more votes? For instance for Spider-Man and Spider-Man 2 we observe that there are too many old reviews which were voted zero times. Those observations pulled the smoother curve down to zero. This raises questions because other movies show the opposite. Older reviews were voted more. It makes sense because older reviews have more time to be voted. 
+
+```{r}
+review_data %>% 
+  ggplot(aes(Date, Total_Vote+1))+
+  geom_point(alpha = 0.25)+
   geom_smooth(color = "blue")+
   geom_vline(xintercept = ymd("2021-12-15"), color = "red", size = 1.1, alpha = 0.8)+
   geom_vline(xintercept = ymd("2018-02-18"), color = "darkred", size = 1.3)+
   facet_wrap(~Movie, scales = "free")+
   scale_y_log10()+
-  labs(x = NULL)
+  labs(x = NULL, y = "Total Votes", subtitle = "Y-Axis is logarithmic scale")
 ```
 
-```{r}
-review_data %>% 
-  ggplot(aes(Date, Total_Vote+1))+
-  geom_point()+
-  geom_smooth(color = "blue")+
-  geom_vline(xintercept = ymd("2021-12-15"), color = "red", size = 1.1, alpha = 0.8)+
-  facet_wrap(~Movie, scales = "free")+
-  scale_y_log10()+
-  labs(x = NULL)
-```
+To plot review helpfulness (Helpful Votes divided by Total Votes) I filtered out reviews that were never voted because zero voted reviews are probably weren't even read at the first place. Except for Into the Spider-Verse and maybe Far From Home, we can observe that more recent reviews are more helpful.However, we should keep in mind that a total vote of one and a total votes of fifty aren't the same thing. We don't really know how many people read a particular review and decided to vote whether positively or not. Ignoring this would lead us wrong inferences.
 
 
 ```{r}
 review_data %>% 
+  filter(Total_Vote > 0) %>% 
   ggplot(aes(Date, Helpfulness))+
-  geom_point()+
+  geom_point(alpha = 0.5)+
   geom_smooth(color = "blue")+
   geom_vline(xintercept = ymd("2021-12-15"), color = "red", size = 1.1, alpha = 0.8)+
+  geom_vline(xintercept = ymd("2018-02-18"), color = "darkred", size = 1.3)+
   facet_wrap(~Movie, scales = "free")+
-  scale_y_log10()
+  labs(x = NULL)
 ```
 
 
 # Text Analysis
 
+Finally we can start to analyze the reviews and reviews' titles' text. Firstly, we will see the most frequent unigrams, bigrams and trigrams for each movie. Then we will jump to the Term Frequency - Inverse Document Frequency analysis. We will try to identify the most important words and word couples. Lastly, we are going to play with Sentiment analysis in order to have an idea about in what manner people wrote their reviews.
+
 ## Unigrams
 
 ### Titles
+
+After applying the stop words filter I plotted the most 20 frequent words for each movie. There are many things to unpack in that plot but unfortunately talking about every one bit would take a lot of time so I am going to pick some that I want to share. 
 
 ```{r}
 unigram_title_tokens <- review_data %>% 
@@ -270,12 +282,23 @@ unigram_title_tokens %>%
   ggplot(aes(Word_Count, Word, fill = Movie))+
   geom_col(show.legend = F)+
   scale_y_reordered()+
-  facet_wrap(~Movie, scales = "free")
+  facet_wrap(~Movie, scales = "free")+
+  labs(y = NULL, x = NULL)
 ```
+
+* Spider-Man 2, TASM 2 and Far From Home, we can see the word "*sequel*" on the plots so we can understand that, well, these movies were sequels. 
+
+* We see many negative words such as "*disappointing, worst, terrible, mess, waste*" were used in the review titles of Spider-Man 3 and TASM 2. These movies weren't really liked by fans. However, keep in mind that Spider-Man 3 gave birth to a very beautiful meme "Bully Maguire".
+
+* The word "*reboot*" was used for TASM and Homecoming since they came after the original trilogy.
+
+* In Home Series, words "*marvel, mcu*" were used a lot. 
+
+* No Way Home brought old Spider-Men, Peter Parkers and their villains into the movie. Thus we can see words such as "*fan, service, nostalgia*". 
 
 ### Reviews
 
-
+Now let's apply the same thing to reviews. One interesting difference is that title unigrams usually described the movie itself and not what it contains. "Is it a sequel?, Is it terrible?" etc. On the opposite, now in reviews unigrams we can see the names of characters and actor/actress names.
 
 ```{r}
 unigram_tokens %>% 
@@ -289,16 +312,31 @@ unigram_tokens %>%
   ggplot(aes(Word_Count, Word, fill = Movie))+
   geom_col(show.legend = F)+
   facet_wrap(~Movie, scales = "free")+
-  scale_y_reordered()
+  scale_y_reordered()+
+  labs(y = NULL, x = NULL)
 ```
 
+* The spider-man in the movie Into the Spider-Verse is Miles Morales that's why the word "*peter*" isn't the first of the second frequent word.
+
+* "*green, goblin, doc, ock, sandman, venom, mysterio, vulture, lizard, electro*" are the villains of their respective movies.
+
+* For MCU movies we can see words such as "*iron, tony, stark, endgame, strange*" since Marvel Cinematic Universe movies are interconnected to each other. We've seen Iron Man in Homecoming and Far From Home and Dr.Strange in No Way Home. Also Far From Home takes place after the Avengers: Endgame.
+
+* Spider-Man has many love affairs and this can be derived from words such as "*love, mj, mary, jane, gwen, stacy*" 
+
+* Words "*andrew, tobey*" are present in No Way Home too because Tobey Maguire and Andrew Garfield played the Spider-Man in the movie too.
+
 ## Bigrams
+
+Unigrams are cool but usually they don't give many information about the context. In the unigram analysis we saw words that were separated but they get different meaning together. For instance, "Green Goblin" was divided into two words. Not knowing about the context someone might think that there is green something in the movie, maybe Spider-Man had a green suit there who knows?
+
+To delve into the reviews a little bit more we also need to analyse bigrams(word couples).
 
 ### Titles
 
 ```{r}
 title_bigrams <- review_data %>% 
-  mutate(Title = str_to_lower(Review, locale = "en")) %>% 
+  mutate(Title = str_to_lower(Title, locale = "en")) %>% 
   unnest_tokens(output = Bigram, input = Title, to_lower = F, token = "ngrams", n = 2) 
   
 
@@ -306,6 +344,7 @@ filtered_title_bigrams <- title_bigrams %>%
   separate(Bigram, into = c("first", "second"), sep = " ") %>% 
   anti_join(stop_words, by = c("first" = "word")) %>% 
   anti_join(stop_words, by = c("second" = "word")) %>% 
+  filter(!is.na(first), !is.na(second)) %>% 
   unite(col = "Bigram", first, second, sep = " ")
 
 filtered_title_bigrams %>% 
@@ -318,7 +357,8 @@ filtered_title_bigrams %>%
   ggplot(aes(Bigram_Count, Bigram, fill = Movie))+
   geom_col(show.legend = FALSE)+
   scale_y_reordered()+
-  facet_wrap(~Movie, scales = "free")
+  facet_wrap(~Movie, scales = "free")+
+  labs(y = NULL, x = NULL)
   
 ```
 
@@ -405,13 +445,14 @@ map(Movie_Names, plot_movie_graphs)
 
 ```{r}
 title_trigrams <- review_data %>% 
-  mutate(Title = str_to_lower(Review, locale = "en")) %>% 
+  mutate(Title = str_to_lower(Title, locale = "en")) %>% 
   unnest_tokens(output = Trigram, input = Title, token = "ngrams", n = 3, to_lower = FALSE)
 
 filtered_title_trigrams <- title_trigrams %>% 
   separate(Trigram, into = c("first", "second", "third"), sep = " ") %>% 
   anti_join(stop_words, by = c("first" =  "word")) %>% 
   anti_join(stop_words, by = c("second" = "word")) %>% 
+  filter(!is.na(first), !is.na(second), !is.na(third)) %>% 
   anti_join(stop_words, by = c("third" = "word")) %>% 
   unite(col = "Trigram", first, second, third, sep = " ")
 

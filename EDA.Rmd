@@ -284,6 +284,7 @@ unigram_title_tokens %>%
   geom_col(show.legend = F)+
   scale_y_reordered()+
   facet_wrap(~Movie, scales = "free")+
+  scale_fill_brewer(palette = "Set1")+
   labs(y = NULL, x = NULL)
 ```
 
@@ -641,7 +642,7 @@ review_data %>%
 
 Since some movies were reviewed many more times than the others(more reviews mean more words, more words mean higher sentiment score) I divided the total sentiment by the total number of reviews that each movie got. I want to point out that before I filtered out the word *amazing*. TASM was the first in the graph. I know that Spider-Man 3 got a lot of hate when it was first released (we also observed that more recent reviews had higher ratings.) so it is not a surprise that its average sentiment score is negative. TASM 2 was also mostly received negatively by the fans and basically got cancelled so it makes sense that it takes the second place of worst average sentiment score. Average scores of other movies are kind of similar. Although I would expect No Way Home to be way higher on the list. 
 
-### Sentiment Score for each Rating
+### Sentiment Score for Each Rating
 
 Is there any relationship between the sentiment score and the review rating? If I gave a movie a high rating I would certainly be reviewing it in a positive manner. Would you do the same? Let's check if there is indeed a relationship between these two variables.
 
@@ -723,7 +724,7 @@ unigram_tokens %>%
 
 * *disappointed* is on the plot of the Spider-Man 3. This word isn't present for other movies. It really shows the higher standards that Spider-Man 3 faced.
 
-
+We can also plot the contributions of the words for each rating score. As you can see below as the review rating increases the variety of the positive words increases too.
 
 ```{r, fig.height=18, fig.width=8}
 unigram_tokens %>% 
@@ -741,11 +742,15 @@ unigram_tokens %>%
     facet_wrap(~Rating, scales = "free", ncol = 2,strip.position = "right")+
     scale_fill_brewer(palette = "Set1")+
     scale_y_reordered()+
-  theme(strip.text.y = element_text(angle = 360))
+  theme(strip.text.y = element_text(angle = 360),
+        strip.background = element_rect(color = "darkred", fill = NA))+
+    labs(y = NULL, x = "Total Sentiment")
 ```
 
 
-### Sentiment of Each Review
+### Sentiment Score versus Review Helpfulness
+
+We might expect a positive relationship between the helpfulness of a review and and it's sentiment score because the way a review is written might change how it is received by readers. A more positively written review might attract more helpful votes even tough the reader doesn't agree with that particular review.
 
 ```{r}
 unigram_tokens %>% 
@@ -755,10 +760,18 @@ unigram_tokens %>%
   inner_join(review_data, by = "Review_ID") %>% 
   filter(Total_Vote > 1) %>% 
   ggplot(aes(Total_Sentiment, Helpfulness))+
-  geom_point(color = "darkblue", alpha = 0.5)+
-  geom_smooth(color = "darkred", size = 1.7) +
-  facet_wrap(~Movie, scales = "free")
+  geom_point(color = "darkblue", alpha = 0.4)+
+  geom_smooth(color = "red", size = 1.4) +
+  facet_wrap(~Movie, scales = "free")+
+  theme(strip.background = element_rect(color = "darkred", fill = NA))+
+  labs(x = "Total Sentiment")
 ```
+
+For some movies (Spider-Man and Spider-Man 2) our hypothesis might hold because there are strong positive relationships. There are also some weak positive relationships for a few movies. Homecoming and TASM have a flat line, meaning no effect. On Spider-Man 3's plot there is a weak negative relationship. This might be because the movie got so much heat that any positive review got its fair share of dislike buttons as well. 
+
+### The Best and the Worst Reviews
+
+Since we calculated an average sentiment score for each review we can check if scores really make sense contextually (Will we really get the feeling of positiveness or the opposite after reading the review.). To get representative worst and best reviews I set some conditions. Those reviews should get a certain amount of total votes, they shouldn't be short and their helpfulness score should be above %50.
 
 ```{r}
 worst_reviews <- unigram_tokens %>% 
@@ -766,8 +779,12 @@ worst_reviews <- unigram_tokens %>%
   group_by(Movie, Review_ID) %>% 
   summarise(Total_Sentiment = sum(value),
             Word_Count = n()) %>% 
+  inner_join(review_data %>% 
+               select(Review_ID, Helpful_Vote, Total_Vote, Helpfulness),
+             by = "Review_ID") %>% 
   mutate(Avg_Sent_per_Word = Total_Sentiment / Word_Count) %>% 
-  filter(Word_Count > 10) %>% 
+  filter(Avg_Sent_per_Word < 0) %>% 
+  filter(Word_Count > 5 & Total_Vote > 25, Helpfulness > 0.5) %>% 
   slice_min(order_by = Avg_Sent_per_Word, n = 1) 
 
 best_reviews <- unigram_tokens %>% 
@@ -775,15 +792,16 @@ best_reviews <- unigram_tokens %>%
   group_by(Movie, Review_ID) %>% 
   summarise(Total_Sentiment = sum(value),
             Word_Count = n()) %>% 
+  inner_join(review_data %>% 
+               select(Review_ID, Helpful_Vote, Total_Vote, Helpfulness),
+             by = "Review_ID") %>% 
   mutate(Avg_Sent_per_Word = Total_Sentiment / Word_Count) %>% 
-  filter(Word_Count > 10) %>% 
+  filter(Avg_Sent_per_Word > 0) %>% 
+  filter(Word_Count > 10 & Total_Vote > 50, Helpfulness > 0.65) %>% 
   slice_max(order_by = Avg_Sent_per_Word, n = 1) 
 
 
-
-```
-
-```{r}
+# A function for printing reviews nicely
 print_reviews <- function(IDs) {
   
   reviews <- review_data %>%
@@ -791,17 +809,59 @@ print_reviews <- function(IDs) {
   
   cat(paste0("\n",
                    "---", reviews$Movie, "---",
-                   "\n Review Rating : ", reviews$Rating, "/10",
+                   "\n Review Rating : ", reviews$Rating, "/10\n",
+             "\n Helpful Votes/Total Votes : ", reviews$Helpful_Vote, "/", reviews$Total_Vote,
                    "\n\n",
                    reviews$Review, "\n"))
 }
 
-print_reviews(best_reviews$Review_ID)
-print_reviews(worst_reviews$Review_ID)
-
 ```
 
-## Negated Words
+Let's print some worst reviews for each movie according to my arbitrary conditions.
+
+```{r}
+print_reviews(worst_reviews$Review_ID)
+```
+
+The review of Spider-Man is a false positive here unfortunately. Looks like the reviewer only summarized the movie and because lots of bad stuff happens in an action superhero movie the review on the average got a negative sentiment score.He/she even rated 9! Other reviews make sense, they are indeed negative and their ratings score are very low. Note that there wasn't any review for Spider-Man 2 which suited my conditions.
+
+Now it's time for good reviews. Those are longer than their counterparts so please bear with me.
+
+```{r}
+print_reviews(best_reviews$Review_ID)
+```
+
+Aside from Homecoming review I think average sentiment score did its job quite well. Reading these reviews gives a good idea about how those movies were received.
+
+Ready for some fire? Let's also print some of the most negative and the most unhelpful reviews! I hope you like some flame.
+
+```{r}
+tasteless_reviews <- unigram_tokens %>% 
+  inner_join(afinn_filtered, by = c("Word" = "word")) %>% 
+  group_by(Movie, Review_ID) %>% 
+  summarise(Total_Sentiment = sum(value),
+            Word_Count = n()) %>% 
+  inner_join(review_data %>% 
+               select(Review_ID, Helpful_Vote, Total_Vote, Helpfulness),
+             by = "Review_ID") %>% 
+  mutate(Avg_Sent_per_Word = Total_Sentiment / Word_Count) %>% 
+  filter(Avg_Sent_per_Word < 0) %>% 
+  filter(Word_Count > 5 & Total_Vote > 25, Helpfulness < 0.2) %>% 
+  slice_min(order_by = Avg_Sent_per_Word, n = 1) 
+
+print_reviews(tasteless_reviews$Review_ID)
+```
+
+### Negated Words
+
+When we were checking out the worst reviews we encountered this false positive. The writer of the review didn't actually say anything bad about the movie but we still got a negative sentiment score. 
+
+```{r}
+print_reviews(2210)
+```
+
+One of the reasons of the negative sentiment could be negation words. The reviewer said that the movie "was not boring" but unigram analysis unfortunately can't detect that. Let's now try to plot what words were negated most of the time.
+
 
 ```{r}
 negate_words <- c("not", "without", "no", "can't", "don't", "won't")
@@ -835,6 +895,36 @@ negated_words %>%
 
 map(unique(review_data$Movie), plot_negation_graphs, negated_words = negated_words) %>% 
   patchwork::wrap_plots(ncol = 3)
+```
+
+That's a big plot so I am leaving most of the exploration to the reader. 
+
+* The word "*regret*" used with *won't* most of the time for movies No Way Home and Spider-Man 2 and Into the Spider-Verse.
+
+* "*like*" was negated too many times with "*dont*".
+
+### EMOLEX (Emotion Lexicon)
+
+
+
+```{r}
+Review_N <- unigram_tokens %>% 
+  group_by(Movie) %>% 
+  count(name = "Total_Word")
+
+unigram_tokens %>% 
+  inner_join(get_sentiments("nrc") %>% filter(word != "spider"), by = c("Word" = "word")) %>% 
+  group_by(Movie, sentiment) %>% 
+  count() %>% 
+  inner_join(Review_N, by = "Movie") %>% 
+  mutate(Emotion_Proportion = n / Total_Word) %>% 
+  ggplot(aes(Emotion_Proportion, reorder_within(sentiment, Emotion_Proportion, Movie), fill = Movie))+
+  geom_col(show.legend = F)+
+  facet_wrap(~Movie, scales = "free_y")+
+  scale_y_reordered()+
+  labs(y = NULL, x = "Emotion Proportion")
+
+
 ```
 
 # Topic Modelling

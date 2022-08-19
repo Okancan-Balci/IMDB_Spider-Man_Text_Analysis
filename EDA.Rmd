@@ -24,7 +24,10 @@ library(ggraph)
 library(topicmodels)
 
 theme_set(theme_bw(base_size = 12))
-theme_update(panel.border = element_blank())
+theme_update(panel.border = element_blank(),
+             strip.background = element_rect(color = NA, fill = NA))
+
+spider_man_colors <- c("#9d1a28", "#29329b", "#bf2431", "#3a76b1", "#8e98a2", "#c6989f", "#4d98e1", "#a0282f", "#2b2e5c")
 
 options(scipen = 20)
 
@@ -103,6 +106,7 @@ review_data %>%
   geom_label(aes(label = round(Rating, digits = 2), y = Inf, x = Rating, color = Movie),
             data = mean_ratings, vjust = 1, hjust = 1, show.legend = FALSE, size = 6)+
   scale_x_continuous(n.breaks = 10)+
+  scale_color_manual(values = spider_man_colors)+
   facet_wrap(~Movie, scales = "free")+
   labs(y = NULL, x = NULL, title = "Rating Distributions and Mean Ratings for each Movie")
 ```
@@ -127,6 +131,7 @@ review_data %>%
              show.legend = FALSE, size = 1.5)+
   geom_label(aes(label = round(Helpfulness, digits = 2), y = Inf, x = Helpfulness, color = Movie),
              data = mean_helpfulness, show.legend = FALSE, vjust = 1, hjust = 1, size = 5)+
+  scale_color_manual(values = spider_man_colors)+
   facet_wrap(~Movie, scales = "free")+
   labs(y = NULL, x = NULL, title = "Helpfulness Distributions and Mean Helpfulness for each Movie")
 ```
@@ -148,6 +153,7 @@ review_data %>%
              data = mean_review_length, show.legend = FALSE, vjust = 1, hjust = 0, size = 5)+
   facet_wrap(~Movie, scales = "free")+
   scale_x_log10()+
+  scale_color_manual(values = spider_man_colors)+
   labs(y = NULL, x = NULL, title = "Review Length Distributions and Mean Length for each Movie",
        subtitle = "X-Axis is logarithmic scale")
 ```
@@ -160,8 +166,8 @@ Now let's explore the relationships between the variables we analyzed above. Sta
 ```{r}
 review_data %>% 
   ggplot(aes(Rating, Review_Length, group = Rating))+
-  geom_boxplot()+
-  geom_smooth(aes(Rating, Review_Length), inherit.aes = F, size = 1.3, color = "darkblue")+
+  geom_boxplot(color = "#29329b")+
+  geom_smooth(aes(Rating, Review_Length), inherit.aes = F, size = 1.2, color = "#9d1a28")+
   facet_wrap(~Movie)+
   scale_x_continuous(n.breaks = 10)+
   scale_y_log10()+
@@ -174,8 +180,8 @@ The relationship between Review Length and Review Helpfulness is plotted below. 
 review_data %>% 
   filter(Total_Vote > 2) %>% 
   ggplot(aes(Review_Length, Helpfulness))+
-  geom_point(alpha = 0.5)+
-  geom_smooth()+
+  geom_point(alpha = 0.4, color = "#29329b")+
+  geom_smooth(color = "#9d1a28", size = 1.2)+
   scale_x_log10()+
   facet_wrap(~Movie, scales = "free")+
   labs(x = "Review Length", subtitle = "X-Axis is logarithmic scale")
@@ -187,8 +193,8 @@ Remember the question we asked when we were analyzing Helpfulness in the former 
 review_data %>% 
   filter(Total_Vote > 2) %>% 
   ggplot(aes(Rating, Helpfulness, group = Rating))+
-  geom_boxplot()+
-  geom_smooth(inherit.aes = FALSE, aes(Rating, Helpfulness))+
+  geom_boxplot(color = "#29329b")+
+  geom_smooth(inherit.aes = FALSE, aes(Rating, Helpfulness), color = "#9d1a28", size = 1.2)+
   facet_wrap(~Movie)+
   scale_x_continuous(n.breaks = 10)
 ```
@@ -200,10 +206,10 @@ Review Ratings through time is very interesting to look at. Except for Spider-Ma
 ```{r}
 review_data %>% 
   ggplot(aes(Date, Rating))+
-  geom_point(color = "darkblue", alpha = 0.7)+
+  geom_point(color = "#29329b", alpha = 0.4)+
   geom_vline(xintercept = ymd("2021-12-15"), color = "black", size = 1.3)+
   geom_vline(xintercept = ymd("2018-02-18"), color = "red", size = 1.3)+# Bully Maguire First Appearance 
-  geom_smooth(color = "darkred", size = 1.6)+
+  geom_smooth(color = "#9d1a28", size = 1.2)+
   scale_y_continuous(n.breaks = 10)+
   scale_x_date(date_minor_breaks = "year")+
   facet_wrap(~Movie, scales = "free")+
@@ -217,8 +223,8 @@ Can we say that older reviews are usually longer? For a number of movies maybe w
 ```{r}
 review_data %>% 
   ggplot(aes(Date, Review_Length))+
-  geom_point(alpha = 0.25)+
-  geom_smooth(color = "blue")+
+  geom_point(alpha = 0.4, color = "#29329b")+
+  geom_smooth(color = "#9d1a28", size = 1.2)+
   geom_vline(xintercept = ymd("2021-12-15"), color = "red", size = 1.1, alpha = 0.8)+
   geom_vline(xintercept = ymd("2018-02-18"), color = "darkred", size = 1.3)+
   facet_wrap(~Movie, scales = "free")+
@@ -232,8 +238,8 @@ Lastly, let's also plot total votes a review gets and helpfulness of a review ov
 ```{r}
 review_data %>% 
   ggplot(aes(Date, Total_Vote+1))+
-  geom_point(alpha = 0.25)+
-  geom_smooth(color = "blue")+
+  geom_point(alpha = 0.4, color = "#29329b")+
+  geom_smooth(color = "#9d1a28", size = 1.2)+
   geom_vline(xintercept = ymd("2021-12-15"), color = "red", size = 1.1, alpha = 0.8)+
   geom_vline(xintercept = ymd("2018-02-18"), color = "darkred", size = 1.3)+
   facet_wrap(~Movie, scales = "free")+
@@ -248,8 +254,8 @@ To plot review helpfulness (Helpful Votes divided by Total Votes) I filtered out
 review_data %>% 
   filter(Total_Vote > 0) %>% 
   ggplot(aes(Date, Helpfulness))+
-  geom_point(alpha = 0.5)+
-  geom_smooth(color = "blue")+
+  geom_point(alpha = 0.4, color = "#29329b")+
+  geom_smooth(color = "#9d1a28", size = 1.2)+
   geom_vline(xintercept = ymd("2021-12-15"), color = "red", size = 1.1, alpha = 0.8)+
   geom_vline(xintercept = ymd("2018-02-18"), color = "darkred", size = 1.3)+
   facet_wrap(~Movie, scales = "free")+
@@ -281,10 +287,10 @@ unigram_title_tokens %>%
   ungroup() %>% 
   mutate(Word = reorder_within(Word, Word_Count, Movie)) %>% 
   ggplot(aes(Word_Count, Word, fill = Movie))+
-  geom_col(show.legend = F)+
+  geom_col(show.legend = F, color = "black", size = 0.05)+
   scale_y_reordered()+
   facet_wrap(~Movie, scales = "free")+
-  scale_fill_brewer(palette = "Set1")+
+  scale_fill_manual(values = spider_man_colors)+
   labs(y = NULL, x = NULL)
 ```
 
@@ -314,6 +320,7 @@ unigram_tokens %>%
   ggplot(aes(Word_Count, Word, fill = Movie))+
   geom_col(show.legend = F)+
   facet_wrap(~Movie, scales = "free")+
+  scale_fill_manual(values = spider_man_colors)+
   scale_y_reordered()+
   labs(y = NULL, x = NULL)
 ```
@@ -358,6 +365,7 @@ filtered_title_bigrams %>%
   mutate(Bigram = reorder_within(Bigram, Bigram_Count, Movie)) %>% 
   ggplot(aes(Bigram_Count, Bigram, fill = Movie))+
   geom_col(show.legend = FALSE)+
+  scale_fill_manual(values = spider_man_colors)+
   scale_y_reordered()+
   facet_wrap(~Movie, scales = "free")+
   labs(y = NULL, x = NULL)
@@ -396,6 +404,7 @@ filtered_bigrams %>%
   ggplot(aes(Bigram_Count, Bigram, fill = Movie))+
   geom_col(show.legend = F)+
   facet_wrap(~Movie, scales = "free")+
+  scale_fill_manual(values = spider_man_colors)+
   scale_y_reordered()+
   labs(x = NULL, y = NULL)
 ```
@@ -489,6 +498,7 @@ filtered_trigrams %>%
   ggplot(aes(Trigram_Count, Trigram, fill = Movie))+
   geom_col(show.legend = F)+
   facet_wrap(~Movie, scales = "free")+
+  scale_fill_manual(values = spider_man_colors)+
   scale_y_reordered()+
   labs(x = NULL, y = NULL)
 ```
@@ -538,6 +548,7 @@ filtered_bigrams %>%
   ggplot(aes(tf, Bigram, fill = Movie))+
   geom_col(show.legend = F)+
   facet_wrap(~Movie, scales = "free")+
+  scale_fill_manual(values = spider_man_colors)+
   scale_y_reordered()+
   labs(y = NULL, x = "Term Frequency")
 ```
@@ -558,6 +569,7 @@ filtered_bigrams %>%
   ggplot(aes(tf_idf, Bigram, fill = Movie))+
   geom_col(show.legend = F)+
   facet_wrap(~Movie, scales = "free")+
+  scale_fill_manual(values = spider_man_colors)+
   scale_y_reordered()+
   labs(y = NULL, x = "TF-IDF")
 ```
@@ -592,7 +604,7 @@ unigram_tokens %>%
   inner_join(Review_N, by = "Movie") %>% 
   mutate(prop = n / Review_N) %>% 
   ggplot(aes(prop, reorder(Movie, prop)))+
-  geom_col(fill = "darkblue")+
+  geom_col(fill = "#29329b")+
   labs(x = "'Amazing' per Review", y = NULL)
 
 unigram_tokens %>% 
@@ -603,7 +615,7 @@ unigram_tokens %>%
   inner_join(Review_N, by = "Movie") %>% 
   mutate(prop = n / Review_N) %>% 
   ggplot(aes(prop, reorder(Movie, prop)))+
-  geom_col(fill = "darkblue")+
+  geom_col(fill = "#29329b")+
   labs(x = "'Marvel' per Review", y = NULL)
 ```
 
@@ -635,7 +647,7 @@ review_data %>%
   mutate(Avg_Sentiment = Total_Sentiment / Review_N) %>% 
   ggplot(aes(Avg_Sentiment, reorder(Movie, Avg_Sentiment), fill = Avg_Sentiment > 0))+
   geom_col(show.legend = F)+
-  scale_fill_brewer(palette = "Set1")+
+  scale_fill_manual(values = spider_man_colors)+
   scale_x_continuous(n.breaks = 7)+
   labs(y = NULL, x = "Sentiment per Review")
 ```
@@ -653,8 +665,8 @@ unigram_tokens %>%
   summarise(Total_Sentiment = sum(value)) %>% 
   inner_join(review_data %>% select(Review_ID, Rating), by = "Review_ID") %>% 
   ggplot(aes(Rating, Total_Sentiment))+
-  geom_boxplot(aes(group = Rating))+
-  geom_smooth()+
+  geom_boxplot(aes(group = Rating), color = "#29329b")+
+  geom_smooth(color = "#9d1a28")+
   facet_wrap(~Movie)+
   scale_x_continuous(n.breaks = 10)+
   coord_cartesian(ylim = c(-20, 65))+
@@ -687,12 +699,11 @@ review_data %>%
   mutate(Avg_Sentiment = Total_Sentiment / Review_N) %>% 
   ggplot(aes(Avg_Sentiment, reorder_within(Movie, Avg_Sentiment, Rating), fill = Avg_Sentiment > 0))+
   geom_col(show.legend = F)+
-  scale_color_brewer(palette = "Set1", aesthetics = c("color", "fill"))+
+  scale_fill_manual(values = spider_man_colors)+
   scale_y_reordered()+
   facet_wrap(~Rating, scales = "free_y", ncol = 1,strip.position = "right")+
   labs(y = NULL, x = "Average Sentiment Score per Review")+
   theme(panel.spacing = unit(0, "cm"),
-        panel.border = element_blank(),
         strip.text.y = element_text(angle = 360))
 ```
 
@@ -713,7 +724,7 @@ unigram_tokens %>%
   ggplot(aes(total_sent, Word, fill = total_sent >0))+
     geom_col(show.legend = F)+
     facet_wrap(~Movie, scales = "free")+
-    scale_fill_brewer(palette = "Set1")+
+    scale_fill_manual(values = spider_man_colors)+
     scale_y_reordered()+
     labs(y = NULL, x = "Total Sentiment")
 ```
@@ -740,9 +751,9 @@ unigram_tokens %>%
   ggplot(aes(total_sent, Word, fill = total_sent >0))+
     geom_col(show.legend = F)+
     facet_wrap(~Rating, scales = "free", ncol = 2,strip.position = "right")+
-    scale_fill_brewer(palette = "Set1")+
+    scale_fill_manual(values = spider_man_colors)+
     scale_y_reordered()+
-  theme(strip.text.y = element_text(angle = 360),
+    theme(strip.text.y = element_text(angle = 360),
         strip.background = element_rect(color = "darkred", fill = NA))+
     labs(y = NULL, x = "Total Sentiment")
 ```
@@ -760,10 +771,9 @@ unigram_tokens %>%
   inner_join(review_data, by = "Review_ID") %>% 
   filter(Total_Vote > 1) %>% 
   ggplot(aes(Total_Sentiment, Helpfulness))+
-  geom_point(color = "darkblue", alpha = 0.4)+
-  geom_smooth(color = "red", size = 1.4) +
+  geom_point(color = "#29329b", alpha = 0.4)+
+  geom_smooth(color = "#9d1a28", size = 1.2) +
   facet_wrap(~Movie, scales = "free")+
-  theme(strip.background = element_rect(color = "darkred", fill = NA))+
   labs(x = "Total Sentiment")
 ```
 
@@ -863,7 +873,7 @@ print_reviews(2210)
 One of the reasons of the negative sentiment could be negation words. The reviewer said that the movie "was not boring" but unigram analysis unfortunately can't detect that. Let's now try to plot what words were negated most of the time.
 
 
-```{r}
+```{r, fig.height=16}
 negate_words <- c("not", "without", "no", "can't", "don't", "won't")
 
 
@@ -887,47 +897,21 @@ negated_words %>%
   geom_col(show.legend = F)+
   facet_wrap(~first, scales = "free")+
   scale_y_reordered()+
-  scale_fill_brewer(palette = "Set1")+
+  scale_fill_manual(values = spider_man_colors)+
   ggtitle({{Movie_Name}})+
   labs(y = NULL, x = NULL)
   
 }
 
 map(unique(review_data$Movie), plot_negation_graphs, negated_words = negated_words) %>% 
-  patchwork::wrap_plots(ncol = 3)
+  patchwork::wrap_plots(ncol = 2)
 ```
 
 That's a big plot so I am leaving most of the exploration to the reader. 
 
-* The word "*regret*" used with *won't* most of the time for movies No Way Home and Spider-Man 2 and Into the Spider-Verse.
-
-* "*like*" was negated too many times with "*dont*".
-
-### EMOLEX (Emotion Lexicon)
-
-
-
-```{r}
-Review_N <- unigram_tokens %>% 
-  group_by(Movie) %>% 
-  count(name = "Total_Word")
-
-unigram_tokens %>% 
-  inner_join(get_sentiments("nrc") %>% filter(word != "spider"), by = c("Word" = "word")) %>% 
-  group_by(Movie, sentiment) %>% 
-  count() %>% 
-  inner_join(Review_N, by = "Movie") %>% 
-  mutate(Emotion_Proportion = n / Total_Word) %>% 
-  ggplot(aes(Emotion_Proportion, reorder_within(sentiment, Emotion_Proportion, Movie), fill = Movie))+
-  geom_col(show.legend = F)+
-  facet_wrap(~Movie, scales = "free_y")+
-  scale_y_reordered()+
-  labs(y = NULL, x = "Emotion Proportion")
-
-
-```
-
 # Topic Modelling
+
+In the last section of this notebook we are going to use LDA in order to cluster our reviews. Latent Dirichlet allocation (LDA) could be considered as an unsupervised learning algorithm for text data. It clusters the documents based on the probability of certain words existing in a given topic. Kind of similar to k-Means clustering algorithm. In the code below I am preparing the sparse matrix that is needed to apply LDA. I also filtered out very rare words.
 
 ```{r}
 LDA_Data <- unigram_tokens %>% 
@@ -941,7 +925,11 @@ Sparse_Mat <- LDA_Data %>%
   cast_dtm(Movie, Word, Word_Total)
 ```
 
+I am going to use two models. The first model is going to have 4 clusters since in the data set we have 9 movies which came from 4 different sources and directors. We have the original trilogy, The Amazing Spider-Man series, Marvel Cinematic Universe Series and a Spider-Verse animation. I wonder if clustering would reflect this as well. Then for the second model I am going to create 9 clusters to see if individual movies are going to be classified correctly.
+
 ## Movie Series
+
+Let's cluster and then plot the word probabilities for each topic. I will try to label these topics with my own knowledge. After that we are going to see the actual gamma values and check how the movies were classified.
 
 ```{r}
 movie_LDA_4 <- LDA(Sparse_Mat, k = 4, control = list(seed = 1993))
@@ -954,23 +942,38 @@ tidy(movie_LDA_4) %>%
   ggplot(aes(beta, term, fill = as.factor(topic)))+
   geom_col(show.legend = F)+
   facet_wrap(~topic, scales = "free")+
-  scale_y_reordered()
+  scale_y_reordered()+
+  labs(y = NULL, x = "Probability of being a part of a Topic")+
+  scale_fill_manual(values = spider_man_colors)
 ```
 
-1 - OG Trilogy
-2 - MCU
-3 - TASM
-4 - Spider-Verse & OG Trilogy
+Here are my predictions about the topics:
+
+1. We see words such as "*raimi, tobey, venom, sandman, goblin, black, suit eddie*". I think this topic represents the Original Trilogy with a heavy emphasis on Spider-Man 3.
+
+2. "*tom, holland, mcu, home, tony*" represent the Marvel Cinematic Universe.
+
+3. In The Amazing Spider-Man series there were "*gwen, stacy, andrew, garfield, lizard, webb, electro*" so this topic is TASM most likely.
+
+4. This topic is a little bit diluted. There are elements from both Spider-Verse and the Original Trilogy.  It's heavy on the trilogy side though.  
+
+Let's check the gamma values if my classifications were right.
 
 ```{r}
 tidy(movie_LDA_4, matrix = "gamma") %>% 
   ggplot(aes(gamma, reorder_within(document, gamma, topic), fill = as.factor(topic)))+
   geom_col(show.legend = F)+
   facet_wrap(~topic, scales = "free_y")+
-  scale_y_reordered()
+  scale_fill_manual(values = spider_man_colors)+
+  scale_y_reordered()+
+  labs(y = NULL, x = "Probability of a Movie belonging to a Topic")
 ```
 
+The first topic is kind of true but we are missing Spider-Man. The second topic is spot on, we also see a little bit of Spider-Verse there. The third topic classifies TASM series well. At last we can observe the confusion in the fourth topic. The original trilogy and Spider-Verse were mixed. It is kind of understandable because their villains and love affairs share the same characters like "dr ock, mary jane, aunt may" etc. 
+
 ## Individual Movies
+
+This time I am increasing the number of clusters to 9 which is equal to the number of movies we have in the data set. The expectations is that every single topic represents a unique movie. I am going to list my guesses here too.
 
 ```{r}
 movie_LDA_9 <- LDA(Sparse_Mat, k = 9, control = list(seed = 1993))
@@ -982,31 +985,47 @@ tidy(movie_LDA_9) %>%
   mutate(term = reorder_within(term, beta, topic)) %>% 
   ggplot(aes(beta, term, fill = as.factor(topic)))+
   geom_col(show.legend = F)+
-  facet_wrap(~topic, scales = "free")+
+  facet_wrap(~topic, scales = "free",
+             strip.position = "right")+
   labs(y = NULL, x = NULL)+
-  scale_y_reordered()
+  scale_y_reordered()+
+  labs(y = NULL, x = "Probability of being a part of a Topic")+
+  scale_fill_manual(values = spider_man_colors)
 ```
 
-1 - Spider-Man 3
-2 - TASM2
-3 - Spider-Man and 2
-4 - Spider-Man
-5 - TASM
-6 - Homecoming
-7 - No Way Home
-8 - Far From Home
-9 - Spider-Verse
+1. Spider-Man 3: "*venom, sandman, 3, black, suit*" 
 
+2. TASM2: "*electro, gwen, goblin, foxx, rhino*"
+
+3. Spider-Man: "*dunst, raimi, maguire, green, goblin, dafoe*"
+
+4. Original Trilogy but nothing specific.
+
+5. TASM: *lizard, reboot, connors, webb*"
+
+6. Homecoming: "*homcoming, holland, vulture, tony, iron*" 
+
+7. No Way Home: "*strange, mcu, tobey, andrew, tom*"
+
+8. Far From Home: "*mysterio, endgame, mj, gyllenhaal, stark*" 
+
+9. Spider-Verse: "*animation, miles, morales*" 
+
+Let's see gamma values.
 
 ```{r}
 tidy(movie_LDA_9, matrix = "gamma") %>% 
   ggplot(aes(gamma, reorder_within(document, gamma, topic), fill = as.factor(topic)))+
   geom_col(show.legend = F)+
   facet_wrap(~topic, scales = "free_y")+
-  scale_y_reordered()
+  scale_y_reordered()+
+  labs(y = NULL, x = "Probability of a Movie belonging to a Topic")+
+  scale_fill_manual(values = spider_man_colors)
 ```
 
+My predictions were mostly okay except for the original trilogy. Looks like the model had a very hard time separating Spider-Man and Spider-Man 2. 
 
+# Conclusion
 
 
 

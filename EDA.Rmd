@@ -1025,6 +1025,85 @@ tidy(movie_LDA_9, matrix = "gamma") %>%
 
 My predictions were mostly okay except for the original trilogy. Looks like the model had a very hard time separating Spider-Man and Spider-Man 2. 
 
+## Modelling with Bigrams
+
+I want to see if using bigrams instead of unigrams would give more identification power to LDA.
+
+```{r}
+LDA_Data <- filtered_bigrams %>% 
+  unite(col = "Bigram", first, second, sep = " ") %>% 
+  group_by(Movie, Bigram) %>% 
+  count(name = "Bigram_Total") %>% 
+  ungroup() %>% 
+  filter(Bigram_Total > 1)
+
+Sparse_Mat <- LDA_Data %>% 
+  cast_dtm(Movie, Bigram, Bigram_Total)
+```
+
+Just as I did with unigrams I am starting with 4 clusters.
+
+```{r}
+movie_LDA_4_bigram <- LDA(Sparse_Mat, k = 4, control = list(seed = 1993))
+
+tidy(movie_LDA_4_bigram) %>% 
+  group_by(topic) %>% 
+  slice_max(beta, n = 40) %>% 
+  ungroup() %>% 
+  mutate(term = reorder_within(term, beta, topic)) %>% 
+  ggplot(aes(beta, term, fill = as.factor(topic)))+
+  geom_col(show.legend = F)+
+  facet_wrap(~topic, scales = "free")+
+  scale_y_reordered()+
+  labs(y = NULL, x = "Probability of being a part of a Topic")+
+  scale_fill_manual(values = spider_man_colors)
+```
+
+As with unigrams Marvel Cinematic Universe movies got classified well in the first topic. For some reason Into the Spider-Verse went to the topic of TASM series. This wasn't the case with unigrams. Lastly, the model had the same trouble clustering the original trilogy, I would expect that Spider-Man, Spider-Man 2 and Spider-Man 3 go into the same topic but it' didn't happen with bigrams neither. 
+
+```{r}
+tidy(movie_LDA_4_bigram, matrix = "gamma") %>% 
+  ggplot(aes(gamma, reorder_within(document, gamma, topic), fill = as.factor(topic)))+
+  geom_col(show.legend = F)+
+  facet_wrap(~topic, scales = "free_y")+
+  scale_fill_manual(values = spider_man_colors)+
+  scale_y_reordered()+
+  labs(y = NULL, x = "Probability of a Movie belonging to a Topic")
+```
+
+Let's now increase the cluster size to 9 to see that if bigrams worked well clustering separate movies.
+
+```{r}
+movie_LDA_9_bigram <- LDA(Sparse_Mat, k = 9, control = list(seed = 1993))
+
+tidy(movie_LDA_9_bigram) %>% 
+  group_by(topic) %>% 
+  slice_max(beta, n = 35) %>% 
+  ungroup() %>% 
+  mutate(term = reorder_within(term, beta, topic)) %>% 
+  ggplot(aes(beta, term, fill = as.factor(topic)))+
+  geom_col(show.legend = F)+
+  facet_wrap(~topic, scales = "free", strip.position = "right")+
+  scale_y_reordered()+
+  labs(y = NULL, x = "Probability of being a part of a Topic")+
+  scale_fill_manual(values = spider_man_colors)
+```
+
+OK. Turns out bigrams are giving more power to LDA. Now original trilogy looks more separated.
+
+```{r}
+tidy(movie_LDA_9_bigram, matrix = "gamma") %>% 
+  ggplot(aes(gamma, reorder_within(document, gamma, topic), fill = as.factor(topic)))+
+  geom_col(show.legend = F)+
+  facet_wrap(~topic, scales = "free_y")+
+  scale_fill_manual(values = spider_man_colors)+
+  scale_y_reordered()+
+  labs(y = NULL, x = "Probability of a Movie belonging to a Topic")
+```
+
+
+
+
 # Conclusion
 
 

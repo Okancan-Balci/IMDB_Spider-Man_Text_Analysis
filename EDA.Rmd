@@ -43,6 +43,8 @@ knitr::opts_chunk$set(warning = FALSE,
 
 # Introduction
 
+**Attention! This notebook contains spoilers about Spider-Man Movies.**
+
 When a product influences me in a good or a bad way I almost always want to hear other people's experiences as well. This is certainly the case when it comes to Spider-Man for me. My first exposure to this hero was The Animated Series when I was a kid. Since then I tried to watch every Spider-Man media available. Through time I reacted differently to these media. Speaking specifically for movies, I loved and adored some of them. Some other movies couldn't satisfy me. I also realized that people have different tastes when it comes to Spider-Man movies. Some really like The Amazing Spider-Man series, I don't. Though I really liked seeing Andrew Garfield as Spider-Man.
 
 After I learned a little bit about Text Analysis, I thought that analyzing this familiar topic would be a good practice. It would also quench my curiosity about other people's reactions the these movies. I will be following the book [Text Mining with R](https://www.tidytextmining.com/index.html) throughout this notebook. That's a very valuable resource if you want to learn more about Text Mining.
@@ -120,7 +122,7 @@ review_data %>%
 The distributions might indicate the differences between reactions. For instance, ratings of Spider-Man 3 kind of look like they were uniformly distributed. Some people loved it, some people hated it and some other people thought that it was a mediocre movie. We can observe a similar distribution for The Amazing Spider-Man 2 as well. On the other hand, rating distributions of No way Home and Into the Spider-Verse are really skewed to the left with a very thin tail. People mostly loved these movies.
 
 
-Helpfulness (Helpful Votes / Total Votes) of a review might give an idea about how review readers reacted to reviews. We can see that Spider-Man 2 averaged 58% helpfulness. Readers agreed many things there but we don't really know what kind of a review they mostly agreed. Maybe they found some criticisms constructive and valuable or maybe they just voted praising highly rated reviews helpful because they really loved the movie too. This question can certainly be answered but that requires more than one variable. Since this is introductory univarite analysis we pass this question for now while keeping it in our minds.
+Helpfulness (Helpful Votes / Total Votes) of a review might give an idea about how review readers reacted to reviews. We can see that Spider-Man 2 averaged 58% helpfulness. Readers agreed many things there but we don't really know what kind of a review they mostly agreed. Maybe they found some criticisms constructive and valuable or maybe they just voted praising highly rated reviews helpful because they really loved the movie too. This question can certainly be answered but that requires more than one variable. Since this is an introductory univarite analysis we pass this question for now while keeping it in our minds.
 
 ```{r}
 mean_helpfulness <- review_data %>% 
@@ -177,7 +179,8 @@ review_data %>%
   scale_x_continuous(n.breaks = 10)+
   scale_color_manual(values = spider_man_colors)+
   scale_y_log10()+
-  labs(y = "Review Length", subtitle = "Y-Axis is logarithmic scale")
+  labs(y = "Review Length", subtitle = "Y-Axis is logarithmic scale",
+       title = "The Relationship between Review Length and Rating")
 ```
 
 The relationship between Review Length and Review Helpfulness is plotted below. Except for Into the Spider-Verse and No Way Home, an inverse relationship between two variables can be observed. Shorter reviews seem to found more helpful than longer ones. To be clear, Spider-Man and Spider-Man 2 show a non-linear relationship but confidence bands are really wide at tails. They are high likely are getting influenced by outlier observations. 
@@ -190,7 +193,8 @@ review_data %>%
   geom_smooth(color = "#9d1a28", size = 1.2)+
   scale_x_log10()+
   facet_wrap(~Movie, scales = "free")+
-  labs(x = "Review Length", subtitle = "X-Axis is logarithmic scale")
+  labs(x = "Review Length", subtitle = "X-Axis is logarithmic scale",
+       title = "The Relationship between Review Helpfulness and Review Length")
 ```
 
 Remember the question we asked when we were analyzing Helpfulness in the former section? Now we can get somewhat of an answer. It appears that people usually find high rated reviews helpful. This is very plain for Spider-Man and Spider-Man 2, TASM 2 and Far From Home. We can also observe that for some movies neutral rated reviews (4-6) are less helpful even compared to very low rated reviews. This is clear for Homecoming, Far From Home and No Way Home. 
@@ -202,7 +206,8 @@ review_data %>%
   geom_boxplot(color = "#29329b")+
   geom_smooth(inherit.aes = FALSE, aes(Rating, Helpfulness), color = "#9d1a28", size = 1.2)+
   facet_wrap(~Movie)+
-  scale_x_continuous(n.breaks = 10)
+  scale_x_continuous(n.breaks = 10)+
+  labs(title = "The Relationship between Review Helpfulness and Rating")
 ```
 
 Lastly I want to plot all these variables against time. Additionally, since Spider-Man: No Way Home brought characters from both Original Spider-Man and The Amazing Spider-Man I want to see if something changed for reviews of the older movies after the release date of No Way Home.
@@ -210,16 +215,26 @@ Lastly I want to plot all these variables against time. Additionally, since Spid
 Review Ratings through time is very interesting to look at. Except for Spider-Man 3 we can observe a strong slump for ratings little bit after the first reviews were published. Overtime, ratings start to normalize again and even get higher. I don't really have an actual idea about these slumps. Maybe the first wave of the reviewers are also enthusiastic fans so they give higher ratings. Spider-Man 3 is an interesting case because over time it gets better review rating scores. Maybe it couldn't meet the high expectations at first but then people realized that it wasn't a horrible movie. I also marked two time points on the plots. The first one is the birth of the internet meme "Bully Maguire" which is based on Spider-Man 3 and Tobey Maguire. Bully Maguire videos were watched over millions of times on YouTube and this definitely brings attention to the original trilogy especially. The second one is the release date of the movie No Way Home which made call backs to older Spider-Man Movies. I don't think YouTube exposure of Bully Maguire affected ratings over time. I don't think the release of No Way Home affected ratings either. Trends are looking very stable.
 
 ```{r}
+time_points <- data.frame(
+  labels = c("Bully Maguire", "No Way Home"),
+  dates = c(ymd("2018-02-18"), ymd("2021-12-15"))
+)
+
 review_data %>% 
   ggplot(aes(Date, Rating))+
   geom_point(color = "#29329b", alpha = 0.4)+
   geom_smooth(color = "#9d1a28", size = 1.2)+
-  geom_vline(xintercept = ymd("2021-12-15"), color = "#bf2431", size = 1.3)+
-  geom_vline(xintercept = ymd("2018-02-18"), color = "#4d98e1", size = 1.3)+# Bully Maguire First Appearance 
+  geom_vline(data = time_points,
+             mapping = aes(xintercept = dates, color = labels),
+             size = 1.3)+
   scale_y_continuous(n.breaks = 10)+
   scale_x_date(date_minor_breaks = "year")+
   facet_wrap(~Movie, scales = "free")+
-  labs(x = NULL)
+  labs(x = NULL, title = "Review Ratings over Time")+
+  scale_color_manual(breaks = c("Bully Maguire", "No Way Home"),
+                     values = c("Bully Maguire" = "#4d98e1", "No Way Home" = "#bf2431"))+
+  theme(legend.position = "bottom",
+        legend.title = element_blank())
 
 ```
 
@@ -231,12 +246,18 @@ review_data %>%
   ggplot(aes(Date, Review_Length))+
   geom_point(alpha = 0.4, color = "#29329b")+
   geom_smooth(color = "#9d1a28", size = 1.2)+
-  geom_vline(xintercept = ymd("2021-12-15"), color = "#bf2431", size = 1.3, alpha = 0.8)+
-  geom_vline(xintercept = ymd("2018-02-18"), color = "#4d98e1", size = 1.3)+
+  geom_vline(data = time_points,
+             mapping = aes(xintercept = dates, color = labels),
+             size = 1.3)+
   facet_wrap(~Movie, scales = "free")+
   scale_x_date(date_minor_breaks = "years")+
   scale_y_log10()+
-  labs(x = NULL, y = "Review Length", subtitle = "Y-Axis is logarithmic scale")
+  labs(x = NULL, y = "Review Length", subtitle = "Y-Axis is logarithmic scale",
+       title = "Review Lengths over Time")+
+  scale_color_manual(breaks = c("Bully Maguire", "No Way Home"),
+                     values = c("Bully Maguire" = "#4d98e1", "No Way Home" = "#bf2431"))+
+  theme(legend.position = "bottom",
+        legend.title = element_blank())
 ```
 
 Lastly, let's also plot total votes a review gets and helpfulness of a review over time. Can we say that older reviews get more votes? For instance for Spider-Man and Spider-Man 2 we observe that there are too many old reviews which were voted zero times. Those observations pulled the smoother curve down to zero. This raises questions because other movies show the opposite. Older reviews were voted more. It makes sense because older reviews have more time to be voted. 
@@ -246,11 +267,17 @@ review_data %>%
   ggplot(aes(Date, Total_Vote+1))+
   geom_point(alpha = 0.4, color = "#29329b")+
   geom_smooth(color = "#9d1a28", size = 1.2)+
-  geom_vline(xintercept = ymd("2021-12-15"), color = "#bf2431", size = 1.3, alpha = 0.8)+
-  geom_vline(xintercept = ymd("2018-02-18"), color = "#4d98e1", size = 1.3)+
+  geom_vline(data = time_points,
+             mapping = aes(xintercept = dates, color = labels),
+             size = 1.3)+
   facet_wrap(~Movie, scales = "free")+
   scale_y_log10()+
-  labs(x = NULL, y = "Total Votes", subtitle = "Y-Axis is logarithmic scale")
+  labs(x = NULL, y = "Total Votes", subtitle = "Y-Axis is logarithmic scale",
+       title = "Total Votes over Time")+
+  scale_color_manual(breaks = c("Bully Maguire", "No Way Home"),
+                     values = c("Bully Maguire" = "#4d98e1", "No Way Home" = "#bf2431"))+
+  theme(legend.position = "bottom",
+        legend.title = element_blank())
 ```
 
 To plot review helpfulness (Helpful Votes divided by Total Votes) I filtered out reviews that were never voted because zero voted reviews are probably weren't even read at the first place. Except for Into the Spider-Verse and maybe Far From Home, we can observe that more recent reviews are more helpful.However, we should keep in mind that a total vote of one and a total votes of fifty aren't the same thing. We don't really know how many people read a particular review and decided to vote whether positively or not. Ignoring this would lead us wrong inferences.
@@ -262,10 +289,15 @@ review_data %>%
   ggplot(aes(Date, Helpfulness))+
   geom_point(alpha = 0.4, color = "#29329b")+
   geom_smooth(color = "#9d1a28", size = 1.2)+
-  geom_vline(xintercept = ymd("2021-12-15"), color = "#bf2431", size = 1.3, alpha = 0.8)+
-  geom_vline(xintercept = ymd("2018-02-18"), color = "#4d98e1", size = 1.3)+
+  geom_vline(data = time_points,
+             mapping = aes(xintercept = dates, color = labels),
+             size = 1.3)+
   facet_wrap(~Movie, scales = "free")+
-  labs(x = NULL)
+  labs(x = NULL, title = "Review Helpfulness over Time")+
+  scale_color_manual(breaks = c("Bully Maguire", "No Way Home"),
+                     values = c("Bully Maguire" = "#4d98e1", "No Way Home" = "#bf2431"))+
+  theme(legend.position = "bottom",
+        legend.title = element_blank())
 ```
 
 
@@ -331,7 +363,7 @@ unigram_tokens %>%
   labs(y = NULL, x = NULL)
 ```
 
-* The spider-man in the movie Into the Spider-Verse is Miles Morales that's why the word "*peter*" isn't the first of the second frequent word.
+* The spider-man in the movie Into the Spider-Verse is Miles Morales that's why the word "*peter*" isn't the first or the second frequent word.
 
 * "*green, goblin, doc, ock, sandman, venom, mysterio, vulture, lizard, electro*" are the villains of their respective movies.
 
@@ -421,51 +453,24 @@ With review bigrams we can get more information about main characters and their 
 
 ### Bigram Graph
 
-```{r}
+It is also possible to visualize word couples with a directed graph so that we can observe the connections between different words.
+
+```{r, fig.height=14, fig.width=12}
 filtered_bigrams %>% 
   unite(col = "Bigram", first, second, sep = " ") %>% 
   group_by(Bigram, Movie) %>% 
   count(sort = T, name = "Bigram_Count") %>% 
   separate(col = Bigram, into = c("first", "second"), sep = " ") %>% 
-  filter(Bigram_Count > 75) %>% 
+  filter(Bigram_Count > 40) %>% 
   graph_from_data_frame() %>% 
   ggraph(layout = "fr")+
-  geom_edge_link(aes(edge_width = Bigram_Count), edge_color = "steelblue", edge_alpha = 0.8,
-                 arrow = arrow(length = unit(4, 'mm')))+
-  geom_node_point(size = 5, alpha = 0.4)+
-  geom_node_text(aes(label = name), repel = T, point.padding = unit(0.2, "lines"))+
-  theme_void()
+  geom_node_point(size = 4, color = "#bf2431")+
+  geom_edge_link(aes(edge_width = Bigram_Count, edge_alpha = Bigram_Count), edge_color = "#29329b",
+                 arrow = arrow(length = unit(2, 'mm')))+
+  geom_node_text(aes(label = name), repel = T, point.padding = unit(0.2, "lines"), vjust = 1)+
+  theme_void()+
+  theme(legend.position = "bottom")
 ```
-
-### Graphs for every other movie
-
-```{r}
-plot_movie_graphs <- function(Movie_Name) {
-
-filtered_bigrams %>% 
-  filter(Movie == Movie_Name) %>% 
-  unite(col = "Bigram", first, second, sep = " ") %>% 
-  group_by(Bigram) %>% 
-  count(sort = T, name = "Bigram_Count") %>% 
-  separate(col = Bigram, into = c("first", "second"), sep = " ") %>% 
-  filter(Bigram_Count > (mean(Bigram_Count) * 40)) %>% 
-  graph_from_data_frame() %>% 
-  ggraph(layout = "fr")+
-  geom_edge_link(aes(edge_width = Bigram_Count), edge_color = "steelblue", edge_alpha = 0.8,
-                 arrow = arrow(length = unit(4, 'mm')))+
-  geom_node_point(size = 5, alpha = 0.4)+
-  geom_node_text(aes(label = name), repel = T, point.padding = unit(0.2, "lines"))+
-  ggtitle({{Movie_Name}})+
-  theme_void()
-  
-}  
-
-
-Movie_Names <- review_data %>% select(Movie) %>% unique() %>% pull(Movie)
-
-map(Movie_Names, plot_movie_graphs)
-```
-
 
 ## Trigrams
 
@@ -505,6 +510,7 @@ filtered_trigrams %>%
   geom_col(show.legend = F)+
   facet_wrap(~Movie, scales = "free", strip.position = "right")+
   scale_fill_manual(values = spider_man_colors)+
+  scale_x_continuous(n.breaks = 3)+
   scale_y_reordered()+
   labs(x = NULL, y = NULL)
 ```
@@ -514,20 +520,21 @@ filtered_trigrams %>%
 
 ### Trigram Graph
 
-```{r}
+```{r, fig.height=14, fig.width=12}
 filtered_trigrams %>% 
   unite(col = "Trigram", first, second, third, sep = " ") %>% 
   group_by(Trigram, Movie) %>% 
   count(sort = T, name = "Trigram_Count") %>% 
   separate(col = Trigram, into = c("first", "second", "third"), sep = " ") %>% 
-  filter(Trigram_Count > 20) %>% 
+  filter(Trigram_Count > 10) %>% 
   graph_from_data_frame() %>% 
   ggraph(layout = "fr")+
-  geom_edge_link(aes(edge_alpha = Trigram_Count, edge_width = Trigram_Count), edge_color = "steelblue",
-                 arrow = arrow(length = unit(4, 'mm')))+
-  geom_node_point(size = 5)+
-  geom_node_text(aes(label = name), repel = T, point.padding = unit(0.2, "lines"))+
-  theme_void()
+  geom_node_point(size = 4, color = "#bf2431")+
+  geom_edge_link(aes(edge_alpha = Trigram_Count, edge_width = Trigram_Count), edge_color = "#29329b",
+                 arrow = arrow(length = unit(2, 'mm')))+
+  geom_node_text(aes(label = name), repel = T, point.padding = unit(0.2, "lines"), vjust = 1)+
+  theme_void()+
+  theme(legend.position = "bottom")
 ```
 
 ## TF-IDF Analysis
@@ -555,11 +562,12 @@ filtered_bigrams %>%
   geom_col(show.legend = F)+
   facet_wrap(~Movie, scales = "free", strip.position = "right")+
   scale_fill_manual(values = spider_man_colors)+
+  scale_x_continuous(n.breaks = 3)+
   scale_y_reordered()+
   labs(y = NULL, x = "Term Frequency")
 ```
 
-Kind of similar to the unigram counts we analyzed above. Let's now plot TF-IDF for each movie.
+Kind of similar to the bigram counts we analyzed above. Let's now plot TF-IDF for each movie.
 
 ```{r, fig.height=11}
 filtered_bigrams %>% 
@@ -576,6 +584,7 @@ filtered_bigrams %>%
   geom_col(show.legend = F)+
   facet_wrap(~Movie, scales = "free", strip.position = "right")+
   scale_fill_manual(values = spider_man_colors)+
+  scale_x_continuous(n.breaks = 3)+
   scale_y_reordered()+
   labs(y = NULL, x = "TF-IDF")
 ```
@@ -597,7 +606,7 @@ Another problem word is *marvel*. Even though all of these movies are Marvel mov
 
 This also shows that lexicon based approaches can cause problems when the context is different so caution is important.
 
-```{r, fig.height=10}
+```{r, fig.height=9}
 Review_N <- review_data %>% 
   group_by(Movie) %>% 
   count(name = "Review_N")
@@ -633,7 +642,7 @@ The usage of *marvel* isn't as dramatic as *amazing*'s but I think removing it f
 
 ### Total Sentiment for Each Movie
 
-```{r}
+```{r, fig.height=6}
 afinn_filtered <- get_sentiments("afinn") %>% 
   filter(word != "amazing" & word != "marvel")
 
@@ -768,7 +777,7 @@ unigram_tokens %>%
 
 ### Sentiment Score versus Review Helpfulness
 
-We might expect a positive relationship between the helpfulness of a review and and it's sentiment score because the way a review is written might change how it is received by readers. A more positively written review might attract more helpful votes even tough the reader doesn't agree with that particular review.
+We might expect a positive relationship between the helpfulness of a review and and its sentiment score because the way a review is written might change how it is received by readers. A more positively written review might attract more helpful votes even tough the reader doesn't agree with that particular review.
 
 ```{r}
 unigram_tokens %>% 
@@ -824,35 +833,56 @@ print_reviews <- function(IDs) {
   reviews <- review_data %>%
     filter(Review_ID %in% IDs) 
   
-  cat(paste0("\n",
-                   "---", reviews$Movie, "---",
+  cat(paste("\n",
+                   "--- --- --- --- --- -- -- --    ", reviews$Movie, "    -- -- -- --- --- --- --- --- \n",
                    "\n Review Rating : ", reviews$Rating, "/10\n",
              "\n Helpful Votes/Total Votes : ", reviews$Helpful_Vote, "/", reviews$Total_Vote,
                    "\n\n",
-                   reviews$Review, "\n"))
+             "<blockquote>", reviews$Review, "\n", "</blockquote>",
+             "\n"))
 }
 
 ```
 
-Let's print some worst reviews for each movie according to my arbitrary conditions.
+Let's print some of the worst reviews for each movie according to my arbitrary conditions.
 
-```{r}
+
+***
+
+
+```{r, results='asis'}
 print_reviews(worst_reviews$Review_ID)
 ```
 
-The review of Spider-Man is a false positive here unfortunately. Looks like the reviewer only summarized the movie and because lots of bad stuff happens in an action superhero movie the review on the average got a negative sentiment score.He/she even rated 9! Other reviews make sense, they are indeed negative and their ratings score are very low. Note that there wasn't any review for Spider-Man 2 which suited my conditions.
+
+***
+
+
+The review of Spider-Man is a false positive here unfortunately. Looks like the reviewer only summarized the movie and because lots of bad stuff happens in an action superhero movie the review on the average got a negative sentiment score. He/she even rated 9! Other reviews make sense, they are indeed negative and their rating scores are very low. Note that there wasn't any review for Spider-Man 2 which suited my conditions.
 
 Now it's time for good reviews. Those are longer than their counterparts so please bear with me.
 
-```{r}
+
+***
+
+
+```{r, results='asis'}
 print_reviews(best_reviews$Review_ID)
 ```
+
+
+***
+
 
 Aside from Homecoming review I think average sentiment score did its job quite well. Reading these reviews gives a good idea about how those movies were received.
 
 Ready for some fire? Let's also print some of the most negative and the most unhelpful reviews! I hope you like some flame.
 
-```{r}
+
+***
+
+
+```{r, results='asis'}
 tasteless_reviews <- unigram_tokens %>% 
   inner_join(afinn_filtered, by = c("Word" = "word")) %>% 
   group_by(Movie, Review_ID) %>% 
@@ -869,18 +899,24 @@ tasteless_reviews <- unigram_tokens %>%
 print_reviews(tasteless_reviews$Review_ID)
 ```
 
+***
+
 ### Negated Words
 
 When we were checking out the worst reviews we encountered this false positive. The writer of the review didn't actually say anything bad about the movie but we still got a negative sentiment score. 
 
-```{r}
+***
+
+```{r, results='asis'}
 print_reviews(2210)
 ```
+
+***
 
 One of the reasons of the negative sentiment could be negation words. The reviewer said that the movie "was not boring" but unigram analysis unfortunately can't detect that. Let's now try to plot what words were negated most of the time.
 
 
-```{r, fig.height=30}
+```{r, fig.height=33}
 negate_words <- c("not", "without", "no", "can't", "don't", "won't")
 
 
@@ -982,7 +1018,7 @@ The first topic is kind of true but we are missing Spider-Man. The second topic 
 
 This time I am increasing the number of clusters to 9 which is equal to the number of movies we have in the data set. The expectations is that every single topic represents a unique movie. I am going to list my guesses here too.
 
-```{r, fig.height=12}
+```{r, fig.height=14}
 movie_LDA_9 <- LDA(Sparse_Mat, k = 9, control = list(seed = 1993))
 
 tidy(movie_LDA_9) %>% 
@@ -994,10 +1030,10 @@ tidy(movie_LDA_9) %>%
   geom_col(show.legend = F)+
   facet_wrap(~topic, scales = "free",
              strip.position = "right")+
-  labs(y = NULL, x = NULL)+
   scale_y_reordered()+
   labs(y = NULL, x = "Probability of being a part of a Topic")+
-  scale_fill_manual(values = spider_man_colors)
+  scale_fill_manual(values = spider_man_colors)+
+  theme(strip.text.y = element_text(angle = 360))
 ```
 
 1. Spider-Man 3: "*venom, sandman, 3, black, suit*" 
@@ -1050,7 +1086,7 @@ Sparse_Mat <- LDA_Data %>%
 
 Just as I did with unigrams I am starting with 4 clusters.
 
-```{r, fig.height=10}
+```{r, fig.height=12}
 movie_LDA_4_bigram <- LDA(Sparse_Mat, k = 4, control = list(seed = 1993))
 
 tidy(movie_LDA_4_bigram) %>% 
@@ -1080,7 +1116,7 @@ tidy(movie_LDA_4_bigram, matrix = "gamma") %>%
 
 Let's now increase the cluster size to 9 to see that if bigrams worked well clustering separate movies.
 
-```{r, fig.height=18}
+```{r, fig.height=22}
 movie_LDA_9_bigram <- LDA(Sparse_Mat, k = 9, control = list(seed = 1993))
 
 tidy(movie_LDA_9_bigram) %>% 
@@ -1093,7 +1129,8 @@ tidy(movie_LDA_9_bigram) %>%
   facet_wrap(~topic, scales = "free", strip.position = "right", ncol = 2)+
   scale_y_reordered()+
   labs(y = NULL, x = "Probability of being a part of a Topic")+
-  scale_fill_manual(values = spider_man_colors)
+  scale_fill_manual(values = spider_man_colors)+
+  theme(strip.text.y = element_text(angle = 360))
 ```
 
 OK. Turns out bigrams are giving more power to LDA. Now original trilogy looks more separated.
@@ -1109,12 +1146,13 @@ tidy(movie_LDA_9_bigram, matrix = "gamma") %>%
 ```
 
 
-
-
 # Conclusion
 
+To be honest I don't think there are anything to conclude in this notebook but I have two remarks:
 
+1. Knowing about the context when text mining is very important because without the context it isn't possible to identify potential biases. This becomes much more important in supervised learning.
 
+2. I think a custom stop words list for the reviews of the Spider-Man Movies is needed in order to understand the reactions better. Since the most important words were cluttered with character or actor/actress names it was kind of hard to get reaction words such as "disappointed".
 
 
 
